@@ -18,8 +18,6 @@ interface SpriteAnimationProps {
 export default function SpriteAnimation({
   isJumping,
   dinoY,
-  canvasHeight,
-  groundHeight,
 }: SpriteAnimationProps) {
   const [currentSprite, setCurrentSprite] = useState(sprite2); // Start with walking animation
   const walkingSprites = [sprite2, sprite3, sprite4];
@@ -48,7 +46,7 @@ export default function SpriteAnimation({
       style={{
         position: "absolute",
         left: 50, // Adjust the Dino's x position if needed
-        bottom: canvasHeight - dinoY - groundHeight, // Calculate Dino's position based on canvas and ground
+        top: dinoY, // Calculate Dino's position based on canvas and ground
         width: 120,
         height: 140,
       }}
