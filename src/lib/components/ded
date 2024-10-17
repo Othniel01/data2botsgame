@@ -1,0 +1,279 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import SpriteAnimation from "@/lib/components/sprite";
+
+export default function GameCanvas() {
+  const canvasRef = useRef(null);
+  const canvasWidth = 800;
+  const canvasHeight = 400;
+  const groundHeight = 50;
+
+  // Dino properties
+  const dino = {
+    x: 50,
+    y: canvasHeight - groundHeight - 130,
+    width: 130,
+    height: 130,
+    dy: 0,
+    isJumping: false,
+  };
+
+  const gravity = 1;
+  const obstacles = [];
+  const gameSpeed = 5;
+  const baseObstacleHeight = 50; // Base height for obstacles
+  let obstacleSpawnRate = 2000; // Base spawn rate
+  let lastSpawn = -obstacleSpawnRate;
+  const [isJumping, setIsJumping] = useState(false);
+  const [dinoY, setDinoY] = useState(dino.y); // State for dino's Y position
+  const [enemyImage, setEnemyImage] = useState(null); // State for enemy image
+
+  useEffect(() => {
+    // Preload the enemy image
+    const img = new Image();
+    img.src = "/image/enemy.png"; // Use the correct relative path from the public directory
+    img.onload = () => setEnemyImage(img); // Set the image in state once loaded
+  }, []);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext("2d");
+
+    const update = (timestamp) => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Draw road
+      ctx.fillStyle = "black";
+      ctx.fillRect(0, canvas.height - groundHeight, canvas.width, groundHeight);
+
+      // Dino jump logic
+      if (dino.isJumping) {
+        dino.dy += gravity;
+        dino.y += dino.dy;
+        setDinoY(dino.y); // Update dinoY state
+
+        if (dino.y >= canvasHeight - groundHeight - dino.height) {
+          dino.y = canvasHeight - groundHeight - dino.height;
+          dino.isJumping = false;
+          setIsJumping(false);
+          dino.dy = 0;
+        }
+      }
+
+      // Move and draw obstacles
+      obstacles.forEach((obstacle, index) => {
+        obstacle.x -= gameSpeed;
+
+        // Check the obstacle type and draw accordingly
+        if (obstacle.type === "enemy" && enemyImage) {
+          ctx.drawImage(
+            enemyImage,
+            obstacle.x,
+            obstacle.y,
+            obstacle.width,
+            obstacle.height
+          );
+        } else {
+          ctx.fillStyle = "green";
+          ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+        }
+
+        if (obstacle.x + obstacle.width < 0) {
+          obstacles.splice(index, 1);
+        }
+      });
+
+      // Spawn new obstacles with variable heights and distances
+      if (timestamp - lastSpawn > obstacleSpawnRate) {
+        const obstacleHeight =
+          baseObstacleHeight + Math.floor(Math.random() * 50); // Random height between base and base + 50
+
+        // Randomly decide whether to spawn an enemy or a regular obstacle
+        const obstacleType = Math.random() < 0.2 ? "enemy" : "regular"; // 20% chance to spawn an enemy
+        obstacles.push({
+          x: canvas.width,
+          y:
+            canvasHeight -
+            groundHeight -
+            (obstacleType === "enemy" ? 70 : obstacleHeight), // Adjust y for enemy height
+          width: 50,
+          height: obstacleType === "enemy" ? 70 : obstacleHeight, // Set height based on type
+          type: obstacleType, // Store the type of obstacle
+        });
+
+        // Randomize the obstacle spawn rate (between 1500ms and 3000ms)
+        lastSpawn = timestamp;
+        obstacleSpawnRate = Math.floor(Math.random() * 1200) + 800; // Min 1500ms, max 3000ms
+      }
+
+      requestAnimationFrame(update);
+    };
+
+    // Handle jumping
+    const handleKeyDown = (e) => {
+      if (e.code === "Space" && !dino.isJumping) {
+        dino.isJumping = true;
+        setIsJumping(true);
+        dino.dy = -20;
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    requestAnimationFrame(update);
+
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [dino.isJumping, enemyImage]); // Re-run effect when enemyImage changes
+
+  return (
+    <div style={{ position: "relative" }}>
+      <canvas
+        ref={canvasRef}
+        className="border-[5px] border-solid border-black"
+        width={canvasWidth}
+        height={canvasHeight}
+      ></canvas>
+      <SpriteAnimation isJumping={isJumping} dinoY={dinoY} />
+    </div>
+  );
+}
+
+("use client");
+
+import { useEffect, useRef, useState } from "react";
+import SpriteAnimation from "@/lib/components/sprite";
+
+export default function GameCanvas() {
+  const canvasRef = useRef(null);
+  const canvasWidth = 800;
+  const canvasHeight = 400;
+  const groundHeight = 50;
+
+  // Dino properties
+  const dino = {
+    x: 50,
+    y: canvasHeight - groundHeight - 130,
+    width: 130,
+    height: 130,
+    dy: 0,
+    isJumping: false,
+  };
+
+  const gravity = 1.2;
+  const obstacles = [];
+  const gameSpeed = 10;
+  const baseObstacleHeight = 50; // Base height for obstacles
+  let obstacleSpawnRate = 2000; // Base spawn rate
+  let lastSpawn = -obstacleSpawnRate;
+  const [isJumping, setIsJumping] = useState(false);
+  const [dinoY, setDinoY] = useState(dino.y); // State for dino's Y position
+  const [enemyImage, setEnemyImage] = useState(null); // State for enemy image
+
+  useEffect(() => {
+    // Preload the enemy image
+    const img = new Image();
+    img.src = "/image/enemy.png"; // Use the correct relative path from the public directory
+    img.onload = () => setEnemyImage(img); // Set the image in state once loaded
+  }, []);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext("2d");
+
+    const update = (timestamp) => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Draw road
+      ctx.fillStyle = "black";
+      ctx.fillRect(0, canvas.height - groundHeight, canvas.width, groundHeight);
+
+      // Dino jump logic
+      if (dino.isJumping) {
+        dino.dy += gravity;
+        dino.y += dino.dy;
+        setDinoY(dino.y); // Update dinoY state
+
+        if (dino.y >= canvasHeight - groundHeight - dino.height) {
+          dino.y = canvasHeight - groundHeight - dino.height;
+          dino.isJumping = false;
+          setIsJumping(false);
+          dino.dy = 0;
+        }
+      }
+
+      // Move and draw obstacles
+      obstacles.forEach((obstacle, index) => {
+        obstacle.x -= gameSpeed;
+
+        // Check the obstacle type and draw accordingly
+        if (obstacle.type === "enemy" && enemyImage) {
+          ctx.drawImage(
+            enemyImage,
+            obstacle.x,
+            obstacle.y,
+            obstacle.width,
+            obstacle.height
+          );
+        } else {
+          ctx.fillStyle = "green";
+          ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+        }
+
+        if (obstacle.x + obstacle.width < 0) {
+          obstacles.splice(index, 1);
+        }
+      });
+
+      // Spawn new obstacles with variable heights and distances
+      if (timestamp - lastSpawn > obstacleSpawnRate) {
+        const obstacleHeight =
+          baseObstacleHeight + Math.floor(Math.random() * 50); // Random height between base and base + 50
+
+        // Randomly decide whether to spawn an enemy or a regular obstacle
+        const obstacleType = Math.random() < 0.2 ? "enemy" : "regular"; // 20% chance to spawn an enemy
+        obstacles.push({
+          x: canvas.width,
+          y:
+            canvasHeight -
+            groundHeight -
+            (obstacleType === "enemy" ? 70 : obstacleHeight), // Adjust y for enemy height
+          width: 50,
+          height: obstacleType === "enemy" ? 70 : obstacleHeight, // Set height based on type
+          type: obstacleType, // Store the type of obstacle
+        });
+
+        // Randomize the obstacle spawn rate (between 1500ms and 3000ms)
+        lastSpawn = timestamp;
+        obstacleSpawnRate = Math.floor(Math.random() * 1200) + 800; // Min 1500ms, max 3000ms
+      }
+
+      requestAnimationFrame(update);
+    };
+
+    // Handle jumping
+    const handleKeyDown = (e) => {
+      if (e.code === "Space" && !dino.isJumping) {
+        dino.isJumping = true;
+        setIsJumping(true);
+        dino.dy = -20;
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    requestAnimationFrame(update);
+
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [dino.isJumping, enemyImage]); // Re-run effect when enemyImage changes
+
+  return (
+    <div style={{ position: "relative" }}>
+      <canvas
+        ref={canvasRef}
+        className="border-[5px] border-solid border-black"
+        width={canvasWidth}
+        height={canvasHeight}
+      ></canvas>
+      <SpriteAnimation isJumping={isJumping} dinoY={dinoY} />
+    </div>
+  );
+}

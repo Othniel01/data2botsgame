@@ -1,0 +1,295 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import SpriteAnimation from "@/lib/components/sprite";
+
+function GameOverOverlay({ onRestart }) {
+  return (
+    <div
+      style={{
+        position: "absolute",
+        top: 0,
+        left: 0,
+        width: "100%",
+        height: "100%",
+        backgroundColor: "rgba(0, 0, 0, 0.7)",
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        color: "white",
+        fontSize: "24px",
+        zIndex: 10,
+      }}
+    >
+      <div>
+        <p>Game Over</p>
+        <button
+          onClick={onRestart}
+          style={{
+            marginTop: "20px",
+            padding: "10px 20px",
+            fontSize: "18px",
+            cursor: "pointer",
+          }}
+        >
+          Restart
+        </button>
+      </div>
+    </div>
+  );
+}
+
+export default function GameCanvas() {
+  const canvasRef = useRef(null);
+  const canvasWidth = 800;
+  const canvasHeight = 400;
+  const groundHeight = 50;
+
+  const dino = {
+    x: 50,
+    y: canvasHeight - groundHeight - 130,
+    width: 130,
+    height: 130,
+    dy: 0,
+    isJumping: false,
+  };
+
+  const gravity = 1;
+  let obstacles = [];
+  const baseGameSpeed = 10;
+  let currentGameSpeed = baseGameSpeed;
+  const baseObstacleHeight = 50;
+  let obstacleSpawnRate = 2000;
+  let lastSpawn = -obstacleSpawnRate;
+  const [isJumping, setIsJumping] = useState(false);
+  const [dinoY, setDinoY] = useState(dino.y);
+  const [enemyImage, setEnemyImage] = useState(null);
+  const [isGameOver, setIsGameOver] = useState(false);
+  const [score, setScore] = useState(0); // State for the score
+  const animationRef = useRef(null);
+  const updateRef = useRef(null);
+  const scoreIntervalRef = useRef(null);
+
+  // Audio refs
+  const gameMusicRef = useRef(null);
+  const gameOverMusicRef = useRef(null);
+  const jumpMusicRef = useRef(null);
+
+  useEffect(() => {
+    const img = new Image();
+    img.src = "/image/enemy.png";
+    img.onload = () => setEnemyImage(img);
+  }, []);
+
+  useEffect(() => {
+    // Initialize audio elements
+    gameMusicRef.current = new Audio("/music/humorous-loop.mp3");
+    gameOverMusicRef.current = new Audio("/music/game-over.mp3");
+    jumpMusicRef.current = new Audio("/music/jump.mp3");
+
+    // Set game music to loop
+    gameMusicRef.current.loop = true;
+
+    // Play game music when component mounts
+    gameMusicRef.current.play();
+
+    return () => {
+      // Stop all music when component unmounts
+      gameMusicRef.current.pause();
+      gameOverMusicRef.current.pause();
+    };
+  }, []);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext("2d");
+
+    const update = (timestamp) => {
+      if (isGameOver) return;
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Draw road
+      ctx.fillStyle = "black";
+      ctx.fillRect(0, canvas.height - groundHeight, canvas.width, groundHeight);
+
+      // Dino jump logic
+      if (dino.isJumping) {
+        dino.dy += gravity;
+        dino.y += dino.dy;
+        setDinoY(dino.y);
+
+        if (dino.y >= canvasHeight - groundHeight - dino.height) {
+          dino.y = canvasHeight - groundHeight - dino.height;
+          dino.isJumping = false;
+          setIsJumping(false);
+          dino.dy = 0;
+        }
+      }
+
+      // Move and draw obstacles
+      obstacles.forEach((obstacle) => {
+        obstacle.x -= currentGameSpeed;
+
+        // Draw enemy image if the obstacle is of type 'enemy'
+        if (obstacle.type === "enemy" && enemyImage) {
+          ctx.drawImage(
+            enemyImage,
+            obstacle.x,
+            obstacle.y,
+            obstacle.width,
+            obstacle.height
+          );
+        } else {
+          ctx.fillStyle = "black";
+          ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+        }
+
+        if (obstacle.x + obstacle.width < 0) {
+          obstacles.splice(obstacles.indexOf(obstacle), 1);
+        }
+
+        // Define custom hitboxes with margins
+        const dinoHitbox = {
+          x: dino.x + 4,
+          y: dino.y + 4,
+          width: dino.width - 40,
+          height: dino.height - 40,
+        };
+
+        // Check collision with obstacles using custom hitboxes
+        const isColliding = obstacles.some((obstacle) => {
+          const obstacleHitbox = {
+            x: obstacle.x + 10,
+            y: obstacle.y + 10,
+            width: obstacle.width - 20,
+            height: obstacle.height - 20,
+          };
+
+          return (
+            dinoHitbox.x < obstacleHitbox.x + obstacleHitbox.width &&
+            dinoHitbox.x + dinoHitbox.width > obstacleHitbox.x &&
+            dinoHitbox.y < obstacleHitbox.y + obstacleHitbox.height &&
+            dinoHitbox.y + dinoHitbox.height > obstacleHitbox.y
+          );
+        });
+
+        if (isColliding) {
+          setIsGameOver(true);
+          cancelAnimationFrame(animationRef.current);
+          clearInterval(scoreIntervalRef.current);
+          // Stop game music and play game-over music
+          gameMusicRef.current.pause();
+          gameOverMusicRef.current.play();
+        }
+      });
+
+      // Spawn new obstacles
+      if (timestamp - lastSpawn > obstacleSpawnRate) {
+        const obstacleHeight =
+          baseObstacleHeight + Math.floor(Math.random() * 50);
+        const obstacleType = Math.random() < 0.2 ? "enemy" : "regular";
+        obstacles.push({
+          x: canvas.width,
+          y:
+            canvasHeight -
+            groundHeight -
+            (obstacleType === "enemy" ? 70 : obstacleHeight),
+          width: 80,
+          height: obstacleType === "enemy" ? 70 : obstacleHeight,
+          type: obstacleType,
+        });
+
+        lastSpawn = timestamp;
+        obstacleSpawnRate = Math.floor(Math.random() * 1200) + 800;
+      }
+
+      animationRef.current = requestAnimationFrame(updateRef.current);
+    };
+
+    updateRef.current = update;
+    animationRef.current = requestAnimationFrame(update);
+
+    const handleKeyDown = (e) => {
+      if (e.code === "Space" && !dino.isJumping) {
+        dino.isJumping = true;
+        setIsJumping(true);
+        dino.dy = -20;
+        // Play jump sound effect
+        jumpMusicRef.current.currentTime = 0;
+        jumpMusicRef.current.play();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      cancelAnimationFrame(animationRef.current);
+    };
+  }, [dino.isJumping, enemyImage, isGameOver]);
+
+  useEffect(() => {
+    if (!isGameOver) {
+      scoreIntervalRef.current = setInterval(() => {
+        setScore((prevScore) => {
+          const newScore = prevScore + 1;
+
+          // Increase game speed and decrease obstacle spawn rate at score thresholds
+          if (newScore % 180 === 0) {
+            currentGameSpeed += 2;
+            obstacleSpawnRate = Math.max(500, obstacleSpawnRate - 100);
+          }
+
+          return newScore;
+        });
+      }, 100);
+    }
+
+    return () => clearInterval(scoreIntervalRef.current);
+  }, [isGameOver]);
+
+  const handleRestart = () => {
+    setIsGameOver(false);
+    dino.y = canvasHeight - groundHeight - 130;
+    dino.dy = 0;
+    dino.isJumping = false;
+    obstacles = [];
+    lastSpawn = -obstacleSpawnRate;
+    setDinoY(dino.y);
+    setScore(0); // Reset score
+    currentGameSpeed = baseGameSpeed; // Reset game speed
+    obstacleSpawnRate = 2000; // Reset obstacle spawn rate
+    animationRef.current = requestAnimationFrame(updateRef.current);
+
+    // Stop game-over music and restart game music
+    gameOverMusicRef.current.pause();
+    gameOverMusicRef.current.currentTime = 0;
+    gameMusicRef.current.play();
+  };
+
+  return (
+    <div style={{ position: "relative" }}>
+      <canvas
+        ref={canvasRef}
+        className="border-[5px] border-solid border-black"
+        width={canvasWidth}
+        height={canvasHeight}
+      ></canvas>
+      <SpriteAnimation isJumping={isJumping} dinoY={dinoY} />
+      <div
+        style={{
+          position: "absolute",
+          bottom: 0,
+          left: 10,
+          color: "black",
+          fontSize: "18px",
+          fontWeight: "bold",
+        }}
+      >
+        Score: {score}
+      </div>
+      {isGameOver && <GameOverOverlay onRestart={handleRestart} />}
+    </div>
+  );
+}
