@@ -3,7 +3,11 @@
 import { useEffect, useRef, useState } from "react";
 import SpriteAnimation from "@/lib/components/sprite";
 
-function GameOverOverlay({ onRestart }) {
+interface GameOverOverlayProps {
+  onRestart: () => void;
+}
+
+function GameOverOverlay({ onRestart }: GameOverOverlayProps) {
   return (
     <div
       style={{
@@ -39,8 +43,16 @@ function GameOverOverlay({ onRestart }) {
   );
 }
 
+interface Obstacle {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  type: string;
+}
+
 export default function GameCanvas() {
-  const canvasRef = useRef(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const canvasWidth = 800;
   const canvasHeight = 400;
   const groundHeight = 50;
@@ -55,7 +67,7 @@ export default function GameCanvas() {
   };
 
   const gravity = 1;
-  let obstacles = [];
+  let obstacles: Obstacle[] = [];
   const baseGameSpeed = 10;
   let currentGameSpeed = baseGameSpeed;
   const baseObstacleHeight = 50;
@@ -63,18 +75,19 @@ export default function GameCanvas() {
   let lastSpawn = -obstacleSpawnRate;
   const [isJumping, setIsJumping] = useState(false);
   const [dinoY, setDinoY] = useState(dino.y);
-  const [enemyImage, setEnemyImage] = useState(null);
-  const [backgroundImage, setBackgroundImage] = useState(null); // Background image state
+  const [enemyImage, setEnemyImage] = useState<HTMLImageElement | null>(null);
+  const [backgroundImage, setBackgroundImage] =
+    useState<HTMLImageElement | null>(null); // Background image state
   const [isGameOver, setIsGameOver] = useState(false);
   const [score, setScore] = useState(0); // State for the score
-  const animationRef = useRef(null);
-  const updateRef = useRef(null);
-  const scoreIntervalRef = useRef(null);
+  const animationRef = useRef<number | null>(null);
+  const updateRef = useRef<((timestamp: number) => void) | null>(null);
+  const scoreIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Audio refs
-  const gameMusicRef = useRef(null);
-  const gameOverMusicRef = useRef(null);
-  const jumpMusicRef = useRef(null);
+  const gameMusicRef = useRef<HTMLAudioElement | null>(null);
+  const gameOverMusicRef = useRef<HTMLAudioElement | null>(null);
+  const jumpMusicRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     const img = new Image();
@@ -93,23 +106,24 @@ export default function GameCanvas() {
     jumpMusicRef.current = new Audio("/music/jump.mp3");
 
     // Set game music to loop
-    gameMusicRef.current.loop = true;
-
-    // Play game music when component mounts
-    gameMusicRef.current.play();
+    if (gameMusicRef.current) {
+      gameMusicRef.current.loop = true;
+      gameMusicRef.current.play();
+    }
 
     return () => {
       // Stop all music when component unmounts
-      gameMusicRef.current.pause();
-      gameOverMusicRef.current.pause();
+      if (gameMusicRef.current) gameMusicRef.current.pause();
+      if (gameOverMusicRef.current) gameOverMusicRef.current.pause();
     };
   }, []);
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    const ctx = canvas.getContext("2d");
+    const ctx = canvas?.getContext("2d");
+    if (!canvas || !ctx) return;
 
-    const update = (timestamp) => {
+    const update = (timestamp: number) => {
       if (isGameOver) return;
 
       ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -186,11 +200,11 @@ export default function GameCanvas() {
 
         if (isColliding) {
           setIsGameOver(true);
-          cancelAnimationFrame(animationRef.current);
-          clearInterval(scoreIntervalRef.current);
+          cancelAnimationFrame(animationRef.current!);
+          clearInterval(scoreIntervalRef.current!);
           // Stop game music and play game-over music
-          gameMusicRef.current.pause();
-          gameOverMusicRef.current.play();
+          if (gameMusicRef.current) gameMusicRef.current.pause();
+          if (gameOverMusicRef.current) gameOverMusicRef.current.play();
         }
       });
 
@@ -214,20 +228,22 @@ export default function GameCanvas() {
         obstacleSpawnRate = Math.floor(Math.random() * 1200) + 800;
       }
 
-      animationRef.current = requestAnimationFrame(updateRef.current);
+      animationRef.current = requestAnimationFrame(updateRef.current!);
     };
 
     updateRef.current = update;
     animationRef.current = requestAnimationFrame(update);
 
-    const handleKeyDown = (e) => {
+    const handleKeyDown = (e: KeyboardEvent) => {
       if (e.code === "Space" && !dino.isJumping) {
         dino.isJumping = true;
         setIsJumping(true);
         dino.dy = -20;
         // Play jump sound effect
-        jumpMusicRef.current.currentTime = 0;
-        jumpMusicRef.current.play();
+        if (jumpMusicRef.current) {
+          jumpMusicRef.current.currentTime = 0;
+          jumpMusicRef.current.play();
+        }
       }
     };
 
@@ -235,7 +251,7 @@ export default function GameCanvas() {
 
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
-      cancelAnimationFrame(animationRef.current);
+      cancelAnimationFrame(animationRef.current!);
     };
   }, [dino.isJumping, enemyImage, isGameOver]);
 
@@ -256,47 +272,50 @@ export default function GameCanvas() {
       }, 100);
     }
 
-    return () => clearInterval(scoreIntervalRef.current);
+    return () => clearInterval(scoreIntervalRef.current!);
   }, [isGameOver]);
 
-  const handleRestart = () => {
-    setIsGameOver(false);
-    dino.y = canvasHeight - groundHeight - 130;
-    dino.dy = 0;
-    dino.isJumping = false;
+  const restartGame = () => {
     obstacles = [];
-    lastSpawn = -obstacleSpawnRate;
+    setScore(0);
     setDinoY(dino.y);
-    setScore(0); // Reset score
-    currentGameSpeed = baseGameSpeed; // Reset game speed
-    obstacleSpawnRate = 2000; // Reset obstacle spawn rate
-    animationRef.current = requestAnimationFrame(updateRef.current);
+    setIsGameOver(false);
+    currentGameSpeed = baseGameSpeed;
+    animationRef.current = requestAnimationFrame(updateRef.current!);
 
-    // Stop game-over music and restart game music
-    gameOverMusicRef.current.pause();
-    gameOverMusicRef.current.currentTime = 0;
-    gameMusicRef.current.play();
+    if (gameMusicRef.current) {
+      gameMusicRef.current.currentTime = 0;
+      gameMusicRef.current.play();
+    }
+
+    if (gameOverMusicRef.current) {
+      gameOverMusicRef.current.pause();
+      gameOverMusicRef.current.currentTime = 0;
+    }
   };
 
   return (
     <div style={{ position: "relative" }}>
+      <SpriteAnimation
+        isJumping={isJumping}
+        dinoY={dinoY}
+        canvasHeight={canvasHeight}
+        groundHeight={groundHeight}
+      />
+      {isGameOver && <GameOverOverlay onRestart={restartGame} />}
+      <div style={{ position: "absolute", top: 10, left: 10, color: "white" }}>
+        Score: {score.toString().padStart(5, "0")}
+      </div>
       <canvas
         ref={canvasRef}
         width={canvasWidth}
         height={canvasHeight}
-        style={{ border: "1px solid black" }}
-      />
-      <SpriteAnimation
-        isJumping={isJumping}
-        dinoY={dinoY}
-        x={dino.x}
-        width={dino.width}
-        height={dino.height}
-      />
-      <div style={{ position: "absolute", top: 10, left: 10, color: "white" }}>
-        Score: {score.toString().padStart(5, "0")}
-      </div>
-      {isGameOver && <GameOverOverlay onRestart={handleRestart} />}
+        style={{
+          border: "2px solid black",
+          display: "block",
+          margin: "auto",
+        }}
+      ></canvas>
     </div>
   );
 }

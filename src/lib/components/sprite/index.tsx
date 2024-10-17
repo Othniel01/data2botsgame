@@ -7,7 +7,20 @@ import sprite2 from "../../../../public/image/sprites/sprite2.png";
 import sprite3 from "../../../../public/image/sprites/sprite3.png";
 import sprite4 from "../../../../public/image/sprites/sprite4.png";
 
-export default function SpriteAnimation({ isJumping, dinoY }) {
+// Define the prop types for the component
+interface SpriteAnimationProps {
+  isJumping: boolean;
+  dinoY: number;
+  canvasHeight: number;
+  groundHeight: number;
+}
+
+export default function SpriteAnimation({
+  isJumping,
+  dinoY,
+  canvasHeight,
+  groundHeight,
+}: SpriteAnimationProps) {
   const [currentSprite, setCurrentSprite] = useState(sprite2); // Start with walking animation
   const walkingSprites = [sprite2, sprite3, sprite4];
   let walkingIndex = 0;
@@ -34,8 +47,8 @@ export default function SpriteAnimation({ isJumping, dinoY }) {
       alt="Dino sprite"
       style={{
         position: "absolute",
-        left: 10, // Dino's x position
-        top: dinoY, // Set the top position to dinoY
+        left: 50, // Adjust the Dino's x position if needed
+        bottom: canvasHeight - dinoY - groundHeight, // Calculate Dino's position based on canvas and ground
         width: 120,
         height: 140,
       }}
