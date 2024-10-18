@@ -66,7 +66,7 @@ export default function GameCanvas() {
     isJumping: false,
   };
 
-  const gravity = 1;
+  const gravity = 1.25;
   let obstacles: Obstacle[] = [];
   const baseGameSpeed = 10;
   let currentGameSpeed = baseGameSpeed;
@@ -101,7 +101,7 @@ export default function GameCanvas() {
 
   useEffect(() => {
     // Initialize audio elements
-    gameMusicRef.current = new Audio("/music/humorous-loop.mp3");
+    gameMusicRef.current = new Audio("/music/8-bit-arcade-mode.mp3");
     gameOverMusicRef.current = new Audio("/music/game-over.mp3");
     jumpMusicRef.current = new Audio("/music/jump.mp3");
 
@@ -310,11 +310,12 @@ export default function GameCanvas() {
         ref={canvasRef}
         width={canvasWidth}
         height={canvasHeight}
-        style={{
-          border: "2px solid black",
-          display: "block",
-          margin: "auto",
-        }}
+        className="block m-auto border-2 border-solid border-[black]"
+        // style={{
+        //   border: "2px solid black",
+        //   display: "block",
+        //   margin: "auto",
+        // }}
       ></canvas>
     </div>
   );
